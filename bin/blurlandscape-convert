@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+#
+#  Created:        Mi 2022-12-07 21:58:05 CET
+#  Last Modified:  Di 2023-05-02 12:28:46 CEST
+#
+# blurlandscape-convert:
+#   Add blur padding to convert portrait image to landscape
+
+# Help text
+usage() {
+cat << EOF
+
+Usage: blurlandscape-convert [-v pixel] [-o dir] [-s string] [-y] [-h] [image..]
+
+OPTIONS:
+  -v pixel    Set virtual pixel method (dither|mirror|random)
+  -o dir      Set output directory and reset suffix
+  -s string   Set suffix for output files
+  -y          Overwrites existing output files
+  -h          Show this help
+EOF
+}
+
+# Defaults
+vpixel=dither
+suffix=-out
+yes=0
+outdir=$PWD
+
+# Process option
+while getopts v:o:s:yh OPTION
+do
+    case "${OPTION}"
+    in
+        v)  vpixel="${OPTARG}"
+            ;;
+        y)  yes=1
+            ;;
+        o)  outdir="${OPTARG}"
+            suffix=
+            ;;
+        s)  suffix="${OPTARG}"
+            ;;
+        h)  usage
+            exit 0
+            ;;
+        \?) usage
+            exit 1
+            ;;
+    esac
+done
+
+# Skip options
+shift $((OPTIND-1))
+
+# Create output directory unless exists
+if [ ! -d "${outdir}" ]
+then
+    if [ "${yes}" -eq 0 ]
+    then
+        read -p "Output directory does not exist.  Create it [YN] ? " -n 1 answer
+        echo
+        if [[ ! ${answer} =~ (y|Y) ]]
+        then
+            exit 1
+        fi
+    fi
+    mkdir -p "${outdir}"
+fi
+
+
+for srcfile in "$@"
+do
+
+    # If argument is not a regular file
+    [ ! -f "$srcfile" ] && continue
+
+    # Get orientation
+    orientation=$(identify -format '%[exif:orientation]' $srcfile)
+
+    # Get height and width
+    if (( orientation > 1 ))
+    then
+        # portrait
+        w=$(identify -format "%h" $srcfile)
+        h=$(identify -format "%w" $srcfile)
+    else
+        # landscape
+        w=$(identify -format "%w" $srcfile)
+        h=$(identify -format "%h" $srcfile)
+    fi
+
+    # Check dimensions
+    if ! [[ $w =~ ^[0-9]+$ ]] || ! [[ $h =~ ^[0-9]+$ ]]
+    then
+
+        # Skip image if dimensions are not available
+        echo "Cannot get size" >&2
+        continue
+
+    elif (( h > w ))
+    then
+
+        # Process portrait images only
+        echo "Processing $srcfile ${w}x${h} ..."
+
+        # Extract file extension
+        ext=${srcfile##*.}
+        fname=$(basename $srcfile .$ext)
+
+        # Set name of output file
+        newfile="${outdir}/${fname}${suffix}.${ext}"
+
+        # Skip conversion if output file exists and no permission to overwrite
+        if [ -f "${newfile}" ]
+        then
+            if [ "${yes}" -ne 0 ]
+            then
+                # Remove existing file
+                rm "${srcfile}"
+            else
+                # Skip file
+                echo "${newfile} already exists, skipped" >&2
+                continue
+            fi
+        fi
+
+        # Invoke Magick convert
+        convert "$srcfile" -auto-orient \
+             \( -clone 0 -virtual-pixel "$vpixel" \
+                -set option:distort:viewport "%hx%w+%h+0" \
+                -filter point -distort SRT 0 +repage -blur 0x5 \) \
+             +swap -gravity center -resize "x${h}" -compose over -composite \
+             -resize "${h}x" \
+             "$newfile"
+
+    fi
+
+done
