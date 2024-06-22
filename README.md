@@ -1,11 +1,11 @@
 # blurlandscape-convert
 
-Add blur padding to convert portrait images to landscape.
+Add blur padding to convert portrait images to landscape
 
 
 ## Description
 
-**blurlandscape-convert** adds a blurred padding to convert portrait images to landscape.
+This script adds a blurred padding to convert portrait images to landscape.
 
 
 ## Synopsis
