@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 #  Created:        Mi 2022-12-07 21:58:05 CET
-#  Last Modified:  So 2023-08-06 13:05:56 CEST
+#  Last Modified:  Di 2024-07-02 19:43:40 CEST
 #
 # blurlandscape-convert:
 #   Add blur padding to convert portrait image to landscape
@@ -9,10 +9,11 @@
 # Help text
 usage() {
 cat << EOF
+Add blur padding to convert portrait image to landscape
 
-Usage: blurlandscape-convert [-v pixel] [-o dir] [-s string] [-y] [-h] [image..]
+Usage: blurlandscape-convert [OPTION]...
 
-OPTIONS:
+Options:
   -v pixel    Set virtual pixel method (dither|mirror|random)
   -o dir      Set output directory and reset suffix
   -s string   Set suffix for output files

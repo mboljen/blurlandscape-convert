@@ -3,11 +3,6 @@
 Add blur padding to convert portrait images to landscape
 
 
-## Description
-
-This script adds a blurred padding to convert portrait images to landscape.
-
-
 ## Synopsis
 
 ```console
@@ -15,31 +10,36 @@ $ blurlandscape-convert [OPTION]...
 ```
 
 
+## Description
+
+This script adds a blurred padding to convert portrait images to landscape.
+
+
 ## Options
 
-+ **-v** _pixel_
++ `-v` _pixel_
 
-  Sets virtual pixel method:
+  Set virtual pixel method:
 
   - `dither` (default)
   - `mirror`
   - `random`
 
-+ **-o** _dir_
++ `-o` _dir_
 
-  Sets output directory and reset suffix
+  Set output directory and reset suffix
 
-+ **-s** _string_
++ `-s` _string_
 
-  Sets suffix for output files
+  Set suffix for output files
 
-+ **-y**
++ `-y`
 
-  Overwrites existing image files
+  Overwrite existing image files
 
-+ **-h**
++ `-h`
 
-  Shows this help message
+  Show this help message
 
 
 ## Exit codes
