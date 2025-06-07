@@ -25,13 +25,9 @@ This script adds a blurred padding to convert portrait images to landscape.
   - `mirror`
   - `random`
 
-+ `-o` _dir_
++ `-n` _string_
 
-  Set output directory and reset suffix
-
-+ `-s` _string_
-
-  Set suffix for output files
+  Set output filename suffix
 
 + `-y`
 

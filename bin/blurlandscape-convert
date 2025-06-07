@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 #  Created:        Mi 2022-12-07 21:58:05 CET
-#  Last Modified:  Di 2024-07-02 19:43:40 CEST
+#  Last Modified:  Sa 2025-06-07 10:40:37 CEST
 #
 # blurlandscape-convert:
 #   Add blur padding to convert portrait image to landscape
@@ -15,8 +15,7 @@ Usage: blurlandscape-convert [OPTION]...
 
 Options:
   -v pixel    Set virtual pixel method (dither|mirror|random)
-  -o dir      Set output directory and reset suffix
-  -s string   Set suffix for output files
+  -n string   Set output filename suffix (default: 'blsc')
   -y          Overwrites existing output files
   -h          Show this help
 EOF
@@ -24,12 +23,11 @@ EOF
 
 # Defaults
 vpixel=dither
-suffix=-out
+suffix=blsc
 yes=0
-outdir=$PWD
 
 # Process option
-while getopts v:o:s:yh OPTION
+while getopts v:n:yh OPTION
 do
     case "${OPTION}"
     in
@@ -37,10 +35,7 @@ do
             ;;
         y)  yes=1
             ;;
-        o)  outdir="${OPTARG}"
-            suffix=
-            ;;
-        s)  suffix="${OPTARG}"
+        n)  suffix="${OPTARG}"
             ;;
         h)  usage
             exit 0
@@ -53,21 +48,6 @@ done
 
 # Skip options
 shift $((OPTIND-1))
-
-# Create output directory unless exists
-if [ ! -d "${outdir}" ]
-then
-    if [ "${yes}" -eq 0 ]
-    then
-        read -p "Output directory does not exist.  Create it [YN] ? " -n 1 answer
-        echo
-        if [[ ! ${answer} =~ (y|Y) ]]
-        then
-            exit 1
-        fi
-    fi
-    mkdir -p "${outdir}"
-fi
 
 # Check number of arguments
 if [ "$#" -eq 0 ]
@@ -118,7 +98,7 @@ do
         fname=$(basename $srcfile .$ext)
 
         # Set name of output file
-        newfile="${outdir}/${fname}${suffix}.${ext}"
+        newfile="${fname}-${suffix}.${ext}"
 
         # Skip conversion if output file exists and no permission to overwrite
         if [ -f "${newfile}" ]
