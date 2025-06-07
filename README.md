@@ -17,7 +17,7 @@ This script adds a blurred padding to convert portrait images to landscape.
 
 ## Options
 
-+ `-v` _pixel_
++ `-m`, `--method` _pixel_
 
   Set virtual pixel method:
 
@@ -25,13 +25,17 @@ This script adds a blurred padding to convert portrait images to landscape.
   - `mirror`
   - `random`
 
-+ `-n` _string_
++ `-d`, `--directory` _value_
 
-  Set output filename suffix
+  Set default output directory (default: `none`)
 
-+ `-y`
++ `-n`, `--name` _value_
 
-  Overwrite existing image files
+  Set default output filename suffix (default: `none`)
+
++ `-y`, `--yes`
+
+  Overwrite existing files
 
 + `-h`
 

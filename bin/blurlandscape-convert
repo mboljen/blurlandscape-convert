@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 #  Created:        Mi 2022-12-07 21:58:05 CET
-#  Last Modified:  Sa 2025-06-07 10:40:37 CEST
+#  Last Modified:  Sa 2025-06-07 12:42:59 CEST
 #
 # blurlandscape-convert:
 #   Add blur padding to convert portrait image to landscape
@@ -11,43 +11,47 @@ usage() {
 cat << EOF
 Add blur padding to convert portrait image to landscape
 
-Usage: blurlandscape-convert [OPTION]...
+Usage: blurlandscape-convert [OPTION]... INFILE...
 
 Options:
-  -v pixel    Set virtual pixel method (dither|mirror|random)
-  -n string   Set output filename suffix (default: 'blsc')
-  -y          Overwrites existing output files
-  -h          Show this help
+  -m, --method=VALUE     Set virtual pixel method (dither|mirror|random)
+  -d, --directory=VALUE  Set output directory (default: none)
+  -n, --name=VALUE       Set output filename suffix (default: none)
+  -y, --yes              Overwrite existing files
+  -h, --help             Show this help message and exit
 EOF
 }
 
 # Defaults
 vpixel=dither
-suffix=blsc
+suffix=
+dir=
 yes=0
 
-# Process option
-while getopts v:n:yh OPTION
+# Parse command line options
+if ! args=$(getopt -a -o m:d:n:hy --long method:,directory:,name:,help,yes -- "$@")
+then
+    echoerr "Error processing command line options"
+    usage
+    exit 1
+fi
+
+# Process command line options
+eval set -- "$args"
+while :
 do
-    case "${OPTION}"
-    in
-        v)  vpixel="${OPTARG}"
-            ;;
-        y)  yes=1
-            ;;
-        n)  suffix="${OPTARG}"
-            ;;
-        h)  usage
-            exit 0
-            ;;
-        \?) usage
-            exit 1
-            ;;
+    case $1 in
+      -m | --method)     vpixel=$2 ; shift 2 ;;
+      -n | --name)       suffix=$2 ; shift 2 ;;
+      -d | --directory)  dir=$2    ; shift 2 ;;
+      -y | --yes)        yes=1     ; shift   ;;
+      -h | --help)       usage     ; shift   ; exit 0 ;;
+      # -- means the end of the arguments; drop this, and break out of the while loop
+      --) shift; break ;;
+       *) echoerr "Unsupported option: $1"; usage ; shift; exit 1 ;;
     esac
 done
 
-# Skip options
-shift $((OPTIND-1))
 
 # Check number of arguments
 if [ "$#" -eq 0 ]
@@ -57,12 +61,44 @@ then
     exit 1
 fi
 
+# Check if NAME and DIR are both set
+if [ -n "$suffix" ] && [ -n "$dir" ]
+then
+    echoerr "Options -d and -n are mutually exclusive"
+    exit 1
+fi
 
-for srcfile in "$@"
+# Check if NAME and DIR are both empty
+if [ -z "$suffix" ] && [ -z "$dir" ]
+then
+    suffix='blsc'
+    echoerr "Using default output filename suffix: $suffix"
+fi
+
+# Set output directory if not defined
+if [ -z "$dir" ]
+then
+    # Set current working directory as output directory
+    dir=$(pwd)
+else
+    # Create output directory if not existing
+    mkdir -p "$dir"
+fi
+
+# Loop over input files
+while [ $# -gt 0 ]
 do
 
-    # If argument is not a regular file
-    [ ! -f "$srcfile" ] && continue
+    # Grep next argument
+    srcfile=$1
+    shift
+
+    # Check if argument is valid file
+    if [ ! -f "$srcfile" ]
+    then
+        echoerr "$srcfile is not a valid faile, skipped"
+        continue
+    fi
 
     # Get orientation
     orientation=$(identify -format '%[exif:orientation]' $srcfile)
@@ -93,23 +129,25 @@ do
         # Process portrait images only
         echo "Processing $srcfile ${w}x${h} ..."
 
-        # Extract file extension
-        ext=${srcfile##*.}
-        fname=$(basename $srcfile .$ext)
-
-        # Set name of output file
-        newfile="${fname}-${suffix}.${ext}"
+        # Assemble name of output file
+        tmp=$(basename -- "$srcfile")
+        if [ -z "$suffix" ]
+        then
+            newfile="$dir/${tmp%.*}.${tmp##*.}"
+        else
+            newfile="$dir/${tmp%.*}-$suffix.${tmp##*.}"
+        fi
 
         # Skip conversion if output file exists and no permission to overwrite
-        if [ -f "${newfile}" ]
+        if [ -f "$newfile" ]
         then
-            if [ "${yes}" -ne 0 ]
+            if [ "$yes" -ne 0 ]
             then
                 # Remove existing file
-                rm "${srcfile}"
+                rm "$srcfile"
             else
                 # Skip file
-                echo "${newfile} already exists, skipped" >&2
+                echoerr "Outfile $newfile already exists, skipped"
                 continue
             fi
         fi
