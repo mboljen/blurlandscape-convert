@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 #  Created:        Mi 2022-12-07 21:58:05 CET
-#  Last Modified:  Sa 2025-06-07 12:42:59 CEST
+#  Last Modified:  Mo 2025-09-15 00:51:14 CEST
 #
 # blurlandscape-convert:
 #   Add blur padding to convert portrait image to landscape
@@ -144,7 +144,7 @@ do
             if [ "$yes" -ne 0 ]
             then
                 # Remove existing file
-                rm "$srcfile"
+                rm "$newfile"
             else
                 # Skip file
                 echoerr "Outfile $newfile already exists, skipped"
