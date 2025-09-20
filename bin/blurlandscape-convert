@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 #  Created:        Mi 2022-12-07 21:58:05 CET
-#  Last Modified:  Mo 2025-09-15 00:51:14 CEST
+#  Last Modified:  Sa 2025-09-20 10:54:47 CEST
 #
 # blurlandscape-convert:
 #   Add blur padding to convert portrait image to landscape
@@ -21,6 +21,9 @@ Options:
   -h, --help             Show this help message and exit
 EOF
 }
+
+# Echo error messages on STDERR
+echoerr () { cat <<< "$@" 1>&2; }
 
 # Defaults
 vpixel=dither
