@@ -1,6 +1,6 @@
 # blurlandscape-convert
 
-Add blur padding to convert portrait images to landscape
+Add blurred padding to convert portrait images to landscape
 
 
 ## Synopsis

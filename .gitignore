@@ -1,2 +1,8 @@
 pkg/
 share/
+
+test/apple-16x9.jpg
+test/apple-9x16.jpg
+test/apple-dither.jpg
+test/apple-mirror.jpg
+test/apple-random.jpg

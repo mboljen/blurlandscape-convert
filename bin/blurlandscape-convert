@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
 #  Created:        Mi 2022-12-07 21:58:05 CET
-#  Last Modified:  Mi 2025-12-24 02:02:42 CET
+#  Last Modified:  Mi 2025-12-24 15:23:11 CET
 #
 # blurlandscape-convert:
-#   Add blur padding to convert portrait image to landscape
+#   Add blurred padding to convert portrait images to landscape
 
 # Help text
 usage() {
@@ -16,8 +16,7 @@ Usage: blurlandscape-convert [OPTION]... INFILE...
 Options:
   -m, --method=VALUE     Set virtual pixel method (dither|mirror|random)
   -r, --ratio=VALUE      Set output ratio (default: none)
-  -d, --directory=VALUE  Set output directory (default: none)
-  -n, --name=VALUE       Set output filename suffix (default: none)
+  -o, --out=VALUE        Set output file or directory name (default: none)
   -y, --yes              Overwrite existing files
   -h, --help             Show this help message and exit
 EOF
@@ -28,13 +27,12 @@ echoerr () { cat <<< "$@" 1>&2; }
 
 # Defaults
 vpixel=dither
-suffix=
-dir=
+out=
 ratio=
 yes=0
 
 # Parse command line options
-if ! args=$(getopt -a -o m:d:n:r:hy --long method:,directory:,name:,ratio:,help,yes -- "$@")
+if ! args=$(getopt -a -o m:o:r:hy --long method:,out:,ratio:,help,yes -- "$@")
 then
     echoerr "Error processing command line options"
     usage
@@ -47,8 +45,7 @@ while :
 do
     case $1 in
       -m | --method)     vpixel=$2 ; shift 2 ;;
-      -n | --name)       suffix=$2 ; shift 2 ;;
-      -d | --directory)  dir=$2    ; shift 2 ;;
+      -o | --out)        out=$2    ; shift 2 ;;
       -r | --ratio)      ratio=$2  ; shift 2 ;;
       -y | --yes)        yes=1     ; shift   ;;
       -h | --help)       usage     ; shift   ; exit 0 ;;
@@ -67,28 +64,64 @@ then
     exit 1
 fi
 
-# Check if NAME and DIR are both set
-if [ -n "$suffix" ] && [ -n "$dir" ]
-then
-    echoerr "Options -d and -n are mutually exclusive"
-    exit 1
-fi
-
 # Check if NAME and DIR are both empty
-if [ -z "$suffix" ] && [ -z "$dir" ]
+if [ -z "$out" ]
 then
-    suffix='blsc'
+    out='blsc'
     echoerr "Using default output filename suffix: $suffix"
 fi
 
 # Set output directory if not defined
-if [ -z "$dir" ]
+if [ -d "$out" ]
 then
-    # Set current working directory as output directory
-    dir=$(pwd)
+    #echo "ok, $out is an existing directory"
+    dir=$out
+    suffix=
+elif [[ "$out" == *\/* ]] || [[ "$out" == *\\* ]]
+then
+    #echo "ok, $out contains slashes, use it as directory name"
+    dir=$out
+    suffix=
 else
-    # Create output directory if not existing
-    mkdir -p "$dir"
+    #echo "ok, $out is suffix, use current directory as output directory"
+    dir=$(pwd)
+    suffix=$out
+fi
+
+# Replace ratio tags
+if [ -n "$ratio" ]
+then
+    if [[ "$ratio" == '16:9' ]]
+    then
+        #
+        ratio=$(bc -l <<< "16.0/9.0")
+        #
+    elif [[ "$ratio" == '16:10' ]]
+    then
+        #
+        ratio=1.6
+        #
+    elif [[ "$ratio" == '4:3' ]]
+    then
+        #
+        ratio=$(bc -l <<< "4.0/3.0")
+        #
+    elif [[ "$ratio" == '5:4' ]]
+    then
+        #
+        ratio=1.25
+        #
+    elif [[ "$ratio" == '2:3' ]]
+    then
+        #
+        ratio=$(bc -l <<< "2.0/3.0")
+        #
+    elif [[ "$ratio" == '9:16' ]]
+    then
+        #
+        ratio=$(bc -l <<< "9.0/16.0")
+        #
+    fi
 fi
 
 # Loop over input files
@@ -115,34 +148,25 @@ do
     then
 
         # Skip image if dimensions are not available
-        echo "Cannot get size" >&2
+        echoerr "Cannot get size"
         continue
 
     else
 
-        # Determine input ratio
+        # Detect given ratio
         r=$(bc -l <<< "$w/$h")
 
         # Consider ratio if given
         if [ -n "$ratio" ]
         then
             # Use given ratio
-            r=$ratio
-            if (( h > w ))
-            then
-                #
-                w1=$(bc -l <<< "scale=0; $h*$r/1")
-                h1=$h
-            else
-                #
-                w1=$w
-                h1=$(bc -l <<< "scale=0; $w/$r/1")
-            fi
-        elif (( h >> w ))
+            w1=$(bc -l <<< "scale=0; $h*$ratio/1")
+            h1=$h
+        elif (( h > w ))
         then
-            # No ratio given, just flip height and width
-            h1=w
-            w1=h
+            # Flip height to weight using given ratio
+            h1=$w
+            w1=$h
         else
             # No ratio given, image is landscape, nothing to do
             echoerr "Input already landscape, no ratio given, skipped"
@@ -150,7 +174,10 @@ do
         fi
 
         # Process portrait images only
-        echo "Processing $srcfile ..."
+        echo -n "Processing $srcfile ... "
+
+        # Create output directory unless existing
+        mkdir -p "$dir"
 
         # Assemble name of output file
         tmp=$(basename -- "$srcfile")
@@ -175,6 +202,7 @@ do
             fi
         fi
 
+        #
         if [ 1 -eq "$(echo "$w/$h < $r" | bc)" ]
         then
 
@@ -186,14 +214,6 @@ do
                  +swap -gravity center -resize "x${h1}" -compose over -composite \
                  -resize "${w1}x" \
                  "$newfile"
-
-            # convert "$srcfile" -auto-orient \
-            #     \( -clone 0 -virtual-pixel "$vpixel" \
-            #        -set option:distort:viewport "%hx%w+%h+0" \
-            #        -filter point -distort SRT 0 +repage -blur 0x5 \) \
-            #     +swap -gravity center -resize "x${h}" -compose over -composite \
-            #     -resize "${h}x" \
-            #     "$newfile"
 
         else
 
@@ -207,5 +227,8 @@ do
                  "$newfile"
 
         fi
+
+        #
+        printf "ok (%d kB written)\n" $(echo "$(wc -c $newfile | awk '{print $1}') / 1024" | bc)
     fi
 done
