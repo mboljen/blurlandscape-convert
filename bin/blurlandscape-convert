@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 #  Created:        Mi 2022-12-07 21:58:05 CET
-#  Last Modified:  Sa 2025-09-20 10:54:47 CEST
+#  Last Modified:  Mi 2025-12-24 02:02:42 CET
 #
 # blurlandscape-convert:
 #   Add blur padding to convert portrait image to landscape
@@ -15,6 +15,7 @@ Usage: blurlandscape-convert [OPTION]... INFILE...
 
 Options:
   -m, --method=VALUE     Set virtual pixel method (dither|mirror|random)
+  -r, --ratio=VALUE      Set output ratio (default: none)
   -d, --directory=VALUE  Set output directory (default: none)
   -n, --name=VALUE       Set output filename suffix (default: none)
   -y, --yes              Overwrite existing files
@@ -29,10 +30,11 @@ echoerr () { cat <<< "$@" 1>&2; }
 vpixel=dither
 suffix=
 dir=
+ratio=
 yes=0
 
 # Parse command line options
-if ! args=$(getopt -a -o m:d:n:hy --long method:,directory:,name:,help,yes -- "$@")
+if ! args=$(getopt -a -o m:d:n:r:hy --long method:,directory:,name:,ratio:,help,yes -- "$@")
 then
     echoerr "Error processing command line options"
     usage
@@ -47,6 +49,7 @@ do
       -m | --method)     vpixel=$2 ; shift 2 ;;
       -n | --name)       suffix=$2 ; shift 2 ;;
       -d | --directory)  dir=$2    ; shift 2 ;;
+      -r | --ratio)      ratio=$2  ; shift 2 ;;
       -y | --yes)        yes=1     ; shift   ;;
       -h | --help)       usage     ; shift   ; exit 0 ;;
       # -- means the end of the arguments; drop this, and break out of the while loop
@@ -103,20 +106,9 @@ do
         continue
     fi
 
-    # Get orientation
-    orientation=$(identify -format '%[exif:orientation]' $srcfile)
-
     # Get height and width
-    if (( orientation > 1 ))
-    then
-        # portrait
-        w=$(identify -format "%h" $srcfile)
-        h=$(identify -format "%w" $srcfile)
-    else
-        # landscape
-        w=$(identify -format "%w" $srcfile)
-        h=$(identify -format "%h" $srcfile)
-    fi
+    w=$(identify -format "%w" $srcfile)
+    h=$(identify -format "%h" $srcfile)
 
     # Check dimensions
     if ! [[ $w =~ ^[0-9]+$ ]] || ! [[ $h =~ ^[0-9]+$ ]]
@@ -126,11 +118,39 @@ do
         echo "Cannot get size" >&2
         continue
 
-    elif (( h > w ))
-    then
+    else
+
+        # Determine input ratio
+        r=$(bc -l <<< "$w/$h")
+
+        # Consider ratio if given
+        if [ -n "$ratio" ]
+        then
+            # Use given ratio
+            r=$ratio
+            if (( h > w ))
+            then
+                #
+                w1=$(bc -l <<< "scale=0; $h*$r/1")
+                h1=$h
+            else
+                #
+                w1=$w
+                h1=$(bc -l <<< "scale=0; $w/$r/1")
+            fi
+        elif (( h >> w ))
+        then
+            # No ratio given, just flip height and width
+            h1=w
+            w1=h
+        else
+            # No ratio given, image is landscape, nothing to do
+            echoerr "Input already landscape, no ratio given, skipped"
+            continue
+        fi
 
         # Process portrait images only
-        echo "Processing $srcfile ${w}x${h} ..."
+        echo "Processing $srcfile ..."
 
         # Assemble name of output file
         tmp=$(basename -- "$srcfile")
@@ -155,15 +175,37 @@ do
             fi
         fi
 
-        # Invoke Magick convert
-        convert "$srcfile" -auto-orient \
-             \( -clone 0 -virtual-pixel "$vpixel" \
-                -set option:distort:viewport "%hx%w+%h+0" \
-                -filter point -distort SRT 0 +repage -blur 0x5 \) \
-             +swap -gravity center -resize "x${h}" -compose over -composite \
-             -resize "${h}x" \
-             "$newfile"
+        if [ 1 -eq "$(echo "$w/$h < $r" | bc)" ]
+        then
 
+            # Invoke Magick convert (portrait), add background left/right
+            convert "$srcfile" -auto-orient \
+                 \( -clone 0 -virtual-pixel "$vpixel" \
+                    -set option:distort:viewport "${w1}x${h1}+${w1}+0" \
+                    -filter point -distort SRT 0 +repage -blur 0x5 \) \
+                 +swap -gravity center -resize "x${h1}" -compose over -composite \
+                 -resize "${w1}x" \
+                 "$newfile"
+
+            # convert "$srcfile" -auto-orient \
+            #     \( -clone 0 -virtual-pixel "$vpixel" \
+            #        -set option:distort:viewport "%hx%w+%h+0" \
+            #        -filter point -distort SRT 0 +repage -blur 0x5 \) \
+            #     +swap -gravity center -resize "x${h}" -compose over -composite \
+            #     -resize "${h}x" \
+            #     "$newfile"
+
+        else
+
+            # Invoke Magick convert (landscape), add background top/bottom
+            convert "$srcfile" -auto-orient \
+                 \( -clone 0 -virtual-pixel "$vpixel" \
+                    -set option:distort:viewport "${w1}x${h1}+0+${h1}" \
+                    -filter point -distort SRT 0 +repage -blur 0x5 \) \
+                 +swap -gravity center -resize "${w1}x" -compose over -composite \
+                 -resize "x${h1}" \
+                 "$newfile"
+
+        fi
     fi
-
 done

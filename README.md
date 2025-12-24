@@ -25,6 +25,10 @@ This script adds a blurred padding to convert portrait images to landscape.
   - `mirror`
   - `random`
 
++ `-r`, `--ratio` _value_
+
+  Set destination aspect ratio (default: `none`)
+
 + `-d`, `--directory` _value_
 
   Set default output directory (default: `none`)
