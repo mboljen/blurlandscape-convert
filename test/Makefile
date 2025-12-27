@@ -2,6 +2,7 @@
 SCRIPT = ../bin/blurlandscape-convert
 OPTS = --yes
 
+# https://www.pexels.com/de-de/foto/nahaufnahme-von-einem-reifen-apfel-auf-einem-ast-30708075/
 INFILE = apple.jpg
 
 OUTFILES = apple-dither.jpg apple-mirror.jpg apple-random.jpg apple-16x9.jpg apple-9x16.jpg

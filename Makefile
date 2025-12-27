@@ -50,7 +50,7 @@ veryclean: clean
 	$(RM) -r -d $(MAN_DIR)
 
 test:
-	$(info Target `$@` not implemented yet)
+	$(MAKE) -C $@/
 
 tag:
 	git tag v$(VERSION)

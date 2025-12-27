@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 #  Created:        Mi 2022-12-07 21:58:05 CET
-#  Last Modified:  Mi 2025-12-24 15:23:11 CET
+#  Last Modified:  Sa 2025-12-27 11:52:14 CET
 #
 # blurlandscape-convert:
 #   Add blurred padding to convert portrait images to landscape
@@ -16,7 +16,7 @@ Usage: blurlandscape-convert [OPTION]... INFILE...
 Options:
   -m, --method=VALUE     Set virtual pixel method (dither|mirror|random)
   -r, --ratio=VALUE      Set output ratio (default: none)
-  -o, --out=VALUE        Set output file or directory name (default: none)
+  -o, --out=VALUE        Set output filename suffix or directory name (default: none)
   -y, --yes              Overwrite existing files
   -h, --help             Show this help message and exit
 EOF
@@ -44,11 +44,11 @@ eval set -- "$args"
 while :
 do
     case $1 in
-      -m | --method)     vpixel=$2 ; shift 2 ;;
-      -o | --out)        out=$2    ; shift 2 ;;
-      -r | --ratio)      ratio=$2  ; shift 2 ;;
-      -y | --yes)        yes=1     ; shift   ;;
-      -h | --help)       usage     ; shift   ; exit 0 ;;
+      -m | --method)  vpixel=$2 ; shift 2 ;;
+      -o | --out)     out=$2    ; shift 2 ;;
+      -r | --ratio)   ratio=$2  ; shift 2 ;;
+      -y | --yes)     yes=1     ; shift   ;;
+      -h | --help)    usage     ; shift   ; exit 0 ;;
       # -- means the end of the arguments; drop this, and break out of the while loop
       --) shift; break ;;
        *) echoerr "Unsupported option: $1"; usage ; shift; exit 1 ;;
@@ -64,63 +64,49 @@ then
     exit 1
 fi
 
-# Check if NAME and DIR are both empty
+# Check output variable
 if [ -z "$out" ]
 then
-    out='blsc'
-    echoerr "Using default output filename suffix: $suffix"
-fi
 
-# Set output directory if not defined
-if [ -d "$out" ]
+    # Not defined, use default filename suffix and current directory
+    dir=$(pwd)
+    suffix='blsc'
+    echoerr "Using default output filename suffix: $suffix"
+
+elif [ -d "$out" ]
 then
-    #echo "ok, $out is an existing directory"
+
+    # Defined, output variable is an existing directory"
     dir=$out
     suffix=
+
 elif [[ "$out" == *\/* ]] || [[ "$out" == *\\* ]]
 then
-    #echo "ok, $out contains slashes, use it as directory name"
+
+    # Defined, output variable contains slashes, use it as directory name"
     dir=$out
     suffix=
+
 else
+
     #echo "ok, $out is suffix, use current directory as output directory"
     dir=$(pwd)
     suffix=$out
+
 fi
 
-# Replace ratio tags
+# Check ratio tag
 if [ -n "$ratio" ]
 then
-    if [[ "$ratio" == '16:9' ]]
-    then
-        #
-        ratio=$(bc -l <<< "16.0/9.0")
-        #
-    elif [[ "$ratio" == '16:10' ]]
-    then
-        #
-        ratio=1.6
-        #
-    elif [[ "$ratio" == '4:3' ]]
-    then
-        #
-        ratio=$(bc -l <<< "4.0/3.0")
-        #
-    elif [[ "$ratio" == '5:4' ]]
-    then
-        #
-        ratio=1.25
-        #
-    elif [[ "$ratio" == '2:3' ]]
-    then
-        #
-        ratio=$(bc -l <<< "2.0/3.0")
-        #
-    elif [[ "$ratio" == '9:16' ]]
-    then
-        #
-        ratio=$(bc -l <<< "9.0/16.0")
-        #
+
+    # Replace aliases by corresponding ratio
+    if   [[ "$ratio" == '16:9'  ]]; then ratio=1.7778
+    elif [[ "$ratio" == '16:10' ]]; then ratio=1.6000
+    elif [[ "$ratio" == '4:3'   ]]; then ratio=1.3333
+    elif [[ "$ratio" == '5:4'   ]]; then ratio=1.2500
+    elif [[ "$ratio" == '2:3'   ]]; then ratio=0.6666
+    elif [[ "$ratio" == '10:16' ]]; then ratio=0.6250
+    elif [[ "$ratio" == '9:16'  ]]; then ratio=0.5625
     fi
 fi
 
@@ -139,9 +125,24 @@ do
         continue
     fi
 
-    # Get height and width
-    w=$(identify -format "%w" $srcfile)
-    h=$(identify -format "%h" $srcfile)
+    # Get orientation
+    orientation=$(identify -format '%[exif:orientation]' $srcfile)
+
+    # Handle vertical disply correction by EXIF orientation flag
+    if (( orientation > 4 ))
+    then
+
+        # https://stackoverflow.com/questions/9371273
+        w=$(identify -format "%h" $srcfile)
+        h=$(identify -format "%w" $srcfile)
+
+    else
+
+        # Get height and width
+        w=$(identify -format "%w" $srcfile)
+        h=$(identify -format "%h" $srcfile)
+
+    fi
 
     # Check dimensions
     if ! [[ $w =~ ^[0-9]+$ ]] || ! [[ $h =~ ^[0-9]+$ ]]
@@ -159,18 +160,24 @@ do
         # Consider ratio if given
         if [ -n "$ratio" ]
         then
+
             # Use given ratio
             w1=$(bc -l <<< "scale=0; $h*$ratio/1")
             h1=$h
+
         elif (( h > w ))
         then
+
             # Flip height to weight using given ratio
             h1=$w
             w1=$h
+
         else
+
             # No ratio given, image is landscape, nothing to do
             echoerr "Input already landscape, no ratio given, skipped"
             continue
+
         fi
 
         # Process portrait images only
@@ -202,7 +209,7 @@ do
             fi
         fi
 
-        #
+        # Compare required ratio with given ratio
         if [ 1 -eq "$(echo "$w/$h < $r" | bc)" ]
         then
 
@@ -228,7 +235,7 @@ do
 
         fi
 
-        #
+        # Success message
         printf "ok (%d kB written)\n" $(echo "$(wc -c $newfile | awk '{print $1}') / 1024" | bc)
     fi
 done
